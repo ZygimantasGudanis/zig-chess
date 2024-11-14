@@ -4,39 +4,58 @@ const pieces = @import("pieces.zig");
 const print = std.debug.print;
 
 pub const Game = struct {
-    pieces: []pieces.Piece = undefined,
+    board: [8][8]?pieces.Piece,
     allocator: std.mem.Allocator,
 
     pub fn init(alloc: std.mem.Allocator) !Game {
-        var gamePieces = try alloc.alloc(pieces.Piece, 32);
-        const game = Game{ .pieces = gamePieces, .allocator = alloc };
+        var board = [8][8]?pieces.Piece{
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+            .{pieces.Piece{ .empty = pieces.ChessEmpty{ .side = pieces.Side.empty } }} ** 8,
+        };
+        board = undefined;
+        for (0..8) |i| {
+            board[i][1] = pieces.Piece{ .pawn = pieces.ChessPawn{ .side = pieces.Side.White } };
+        }
 
         for (0..8) |i| {
-            gamePieces[i] = pieces.Piece{ .pawn = pieces.ChessPawn{ .column = @intCast(i), .row = 1, .side = pieces.Side.White } };
+            board[i][6] = pieces.Piece{ .pawn = pieces.ChessPawn{ .side = pieces.Side.Black } };
         }
 
         const majorPieces = .{ pieces.ChessRook, pieces.ChessKnight, pieces.ChessBishop, pieces.ChessKing, pieces.ChessQueen, pieces.ChessBishop, pieces.ChessKnight, pieces.ChessRook };
-        print("{}\n", .{pieces.ChessRook});
-        inline for (majorPieces, 8..) |major, index| {
-            const rez = doWork(major, index, 0, pieces.Side.White);
-            gamePieces[index] = rez;
+        inline for (majorPieces, 0..) |major, index| {
+            const rez = doWork(major, pieces.Side.White);
+            board[index][0] = rez;
         }
 
-        return game;
+        inline for (majorPieces, 0..) |major, index| {
+            const rez = doWork(major, pieces.Side.Black);
+            board[index][7] = rez;
+        }
+
+        return Game{
+            .allocator = alloc,
+            .board = board,
+        };
     }
     pub fn deinit(self: Game) void {
         self.allocator.free(pieces);
     }
 };
 
-fn doWork(piece: anytype, column: u8, row: u8, side: pieces.Side) pieces.Piece {
+fn doWork(piece: anytype, side: pieces.Side) pieces.Piece {
     switch (piece) {
-        pieces.ChessRook => return pieces.Piece{ .rook = pieces.ChessRook{ .column = column, .row = row, .side = side } },
-        pieces.ChessBishop => return pieces.Piece{ .bishop = pieces.ChessBishop{ .column = column, .row = row, .side = side } },
-        pieces.ChessKnight => return pieces.Piece{ .knight = pieces.ChessKnight{ .column = column, .row = row, .side = side } },
-        pieces.ChessKing => return pieces.Piece{ .king = pieces.ChessKing{ .column = column, .row = row, .side = side } },
-        pieces.ChessQueen => return pieces.Piece{ .queen = pieces.ChessQueen{ .column = column, .row = row, .side = side } },
-        else => return pieces.Piece{ .pawn = pieces.ChessPawn{ .column = 1, .row = 1, .side = pieces.Side.White } },
+        pieces.ChessRook => return pieces.Piece{ .rook = pieces.ChessRook{ .side = side } },
+        pieces.ChessBishop => return pieces.Piece{ .bishop = pieces.ChessBishop{ .side = side } },
+        pieces.ChessKnight => return pieces.Piece{ .knight = pieces.ChessKnight{ .side = side } },
+        pieces.ChessKing => return pieces.Piece{ .king = pieces.ChessKing{ .side = side } },
+        pieces.ChessQueen => return pieces.Piece{ .queen = pieces.ChessQueen{ .side = side } },
+        else => return null,
     }
 }
 

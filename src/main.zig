@@ -25,8 +25,7 @@ pub fn main() !void {
 
     const game = try gameLib.Game.init(arena.allocator());
     //defer game.deinit();
-    const piece = game.pieces[0];
-    try printPiece(piece);
+    try printBoard2(game);
     //print("{}", .{piece});
 }
 
@@ -37,6 +36,25 @@ pub fn printBoard() !void {
         for (0..1) |_| {
             for (0..8) |_| {
                 print("|   ", .{});
+            }
+            print("|\n", .{});
+        }
+        print("{s}\n", .{line});
+    }
+}
+
+pub fn printBoard2(game: gameLib.Game) !void {
+    const line = [_]u8{'-'} ** 33;
+    print("{s}\n", .{line});
+    for (0..8) |i| {
+        for (0..1) |_| {
+            for (0..8) |j| {
+                const piece = game.board[j][i];
+                if (piece == null) {
+                    print("|  ", .{});
+                } else {
+                    print("| {s} ", .{piece.?.name()});
+                }
             }
             print("|\n", .{});
         }
