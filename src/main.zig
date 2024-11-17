@@ -8,6 +8,10 @@ const print = std.debug.print;
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var game = try gameLib.Game.init(arena.allocator());
+    //defer game.deinit();
+    try gameLib.printBoard2(&game);
+
     // stdout is for the actual output of your application, for example if you
     // are implementing gzip, then only the compressed bytes should be sent to
     // stdout, not any debugging messages.
@@ -22,10 +26,6 @@ pub fn main() !void {
 
     //print("{}.\n", .{piece.canMove()});
     //try printBoard(stdout);
-
-    const game = try gameLib.Game.init(arena.allocator());
-    //defer game.deinit();
-    try printBoard2(game);
     //print("{}", .{piece});
 }
 
@@ -40,35 +40,5 @@ pub fn printBoard() !void {
             print("|\n", .{});
         }
         print("{s}\n", .{line});
-    }
-}
-
-pub fn printBoard2(game: gameLib.Game) !void {
-    const line = [_]u8{'-'} ** 33;
-    print("{s}\n", .{line});
-    for (0..8) |i| {
-        for (0..1) |_| {
-            for (0..8) |j| {
-                const piece = game.board[j][i];
-                if (piece == null) {
-                    print("|  ", .{});
-                } else {
-                    print("| {s} ", .{piece.?.name()});
-                }
-            }
-            print("|\n", .{});
-        }
-        print("{s}\n", .{line});
-    }
-}
-
-pub fn printPiece(piece: pieces.Piece) !void {
-    switch (piece) {
-        .pawn => |p| print("Side : {}", .{p.side}),
-        .bishop => |p| print("Side : {}", .{p.side}),
-        .king => |p| print("Side : {}", .{p.side}),
-        .queen => |p| print("Side : {}", .{p.side}),
-        .rook => |p| print("Side : {}", .{p.side}),
-        .knight => |p| print("Side : {}", .{p.side}),
     }
 }
