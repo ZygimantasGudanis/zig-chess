@@ -96,7 +96,7 @@ pub const Game = struct {
 
 pub fn printBoard2(game: *Game) !void {
     const line = [_]u8{'-'} ** 33;
-    print("Total moves for pawn: {}\n", .{pawnMoves(game, Square.init2(game, 1, 1))});
+    print("Total moves for bishop: {}\n", .{pieceMoves(game, Square.init2(game, 2, 0))});
     print("{}\n", .{game.board[3][0].?.piece});
     print("{s}\n", .{line});
     for (0..8) |i| {
@@ -125,8 +125,20 @@ pub fn printPiece(piece: pieces.Piece) !void {
     }
 }
 
+pub fn pieceMoves(game: *Game, square: Square) u8 {
+    switch (square.piece.?.piece) {
+        .Bishop => return bishopMoves(game, square),
+        .King => return 0,
+        .Knight => return 0,
+        .Pawn => return pawnMoves(game, square),
+        .Queen => return queenMoves(game, square),
+        .Rook => return rookMoves(game, square),
+    }
+}
+
 pub fn pawnMoves(game: *Game, square: Square) u8 {
-    if (square.piece == null) return 0;
+    std.debug.assert(square.piece != null);
+
     var totalMoves: u8 = 0;
     var column = square.column;
     if (square.piece.?.isWhite()) column += 1 else column -= 1;
@@ -151,19 +163,57 @@ pub fn pawnMoves(game: *Game, square: Square) u8 {
 }
 
 pub fn rookMoves(game: *Game, square: Square) u8 {
-    if (square.piece == null) return 0;
+    std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
 
-    if (!square.piece.?.hasMoved()) {
+    if (!square.piece.?.hasMoved) {
         if (square.row == 7) {
             var i = square.row - 1;
             while (i > 0) : (i -= 1) {
                 const piece = game.board[i][square.column];
-                if (piece != null and piece.?.piece != ChessPiece.King) break;
+                if (piece == null) continue;
+                if (piece.?.piece != ChessPiece.King) break;
+
+                //rook lift
+            }
+        }
+
+        if (square.row == 0) {
+            var i = square.row + 1;
+            while (i < game.board.len) : (i += 1) {
+                const piece = game.board[i][square.column];
+                if (piece == null) continue;
+                if (piece.?.piece != ChessPiece.King) break;
+
+                //rook lift if no Checks in path
             }
         }
     }
 
+    totalMoves += lines(game, square);
+    return totalMoves;
+}
+
+pub fn bishopMoves(game: *Game, square: Square) u8 {
+    std.debug.assert(square.piece != null);
+    var totalMoves: u8 = 0;
+    totalMoves += diagnal(game, square);
+    return totalMoves;
+}
+
+pub fn queenMoves(game: *Game, square: Square) u8 {
+    std.debug.assert(square.piece != null);
+    var totalMoves: u8 = 0;
+    totalMoves += diagnal(game, square);
+    totalMoves += lines(game, square);
+    return totalMoves;
+}
+
+fn lines(game: *Game, square: Square) u8 {
+    std.debug.assert(square.piece != null);
+    std.debug.assert(square.piece.?.piece == ChessPiece.Queen or square.piece.?.piece == ChessPiece.Rook);
+
+    var totalMoves: u8 = 0;
     if (square.row < 7) {
         for (square.row + 1..8) |i| {
             if (game.board[i][square.column] == null) {
@@ -172,7 +222,7 @@ pub fn rookMoves(game: *Game, square: Square) u8 {
         }
     }
 
-    if (square.row > 7) {
+    if (square.row > 0) {
         for (0..square.row - 1) |i| {
             if (game.board[i][square.column] == null) {
                 totalMoves += 1;
@@ -180,7 +230,65 @@ pub fn rookMoves(game: *Game, square: Square) u8 {
         }
     }
 
+    if (square.column < 7) {
+        for (square.column + 1..8) |i| {
+            if (game.board[square.row][i] == null) {
+                totalMoves += 1;
+            }
+        }
+    }
+
+    if (square.column > 0) {
+        for (0..square.column - 1) |i| {
+            if (game.board[square.row][i] == null) {
+                totalMoves += 1;
+            }
+        }
+    }
     return totalMoves;
+}
+
+fn diagnal(game: *Game, square: Square) u8 {
+    std.debug.assert(square.piece != null);
+    std.debug.assert(square.piece.?.piece == ChessPiece.Queen or square.piece.?.piece == ChessPiece.Bishop);
+
+    var minValue = min(@as(u8, game.board.len) - square.column, @as(u8, game.board.len) - square.row);
+    var totalMoves: u8 = 0;
+    if (minValue > 0) {
+        for (1..minValue) |i| {
+            if (game.board[square.row + i][square.column + i] != null) break;
+            totalMoves += 1;
+        }
+    }
+    minValue = min(square.column, square.row) + 1;
+    if (minValue > 0) {
+        for (1..minValue) |i| {
+            if (game.board[square.row - i][square.column - i] != null) break;
+            totalMoves += 1;
+        }
+    }
+
+    minValue = min(@as(u8, game.board.len) - square.column, square.row) + 1;
+    if (minValue > 0) {
+        for (1..minValue) |i| {
+            if (game.board[square.row - i][square.column + i] != null) break;
+            totalMoves += 1;
+        }
+    }
+
+    minValue = min(square.column, @as(u8, game.board.len) - square.row) + 1;
+    if (minValue > 0) {
+        for (1..minValue) |i| {
+            if (game.board[square.row + i][square.column - i] != null) break;
+            totalMoves += 1;
+        }
+    }
+    return totalMoves;
+}
+
+fn min(a: u8, b: u8) u8 {
+    if (a < b) return a;
+    return b;
 }
 
 // row 1 2 3 4
