@@ -1,6 +1,8 @@
 const std = @import("std");
 const pieces = @import("pieces.zig");
 
+const ChessPiece = pieces.ChessPiece;
+
 const print = std.debug.print;
 
 pub const Square = struct {
@@ -51,21 +53,33 @@ pub const Game = struct {
         };
 
         for (0..8) |i| {
-            board[i][1] = pieces.Piece{ .pawn = pieces.ChessPawn{ .side = pieces.Side.White } };
+            board[i][1] = pieces.Piece{
+                .side = pieces.Side.White,
+                .piece = ChessPiece.Pawn,
+            };
         }
 
         for (0..8) |i| {
-            board[i][6] = pieces.Piece{ .pawn = pieces.ChessPawn{ .side = pieces.Side.Black } };
+            board[i][6] = pieces.Piece{
+                .side = pieces.Side.Black,
+                .piece = ChessPiece.Pawn,
+            };
         }
 
-        const majorPieces = .{ pieces.ChessRook, pieces.ChessKnight, pieces.ChessBishop, pieces.ChessKing, pieces.ChessQueen, pieces.ChessBishop, pieces.ChessKnight, pieces.ChessRook };
+        const majorPieces = [_]ChessPiece{ ChessPiece.Rook, ChessPiece.Knight, ChessPiece.Bishop, ChessPiece.King, ChessPiece.Queen, ChessPiece.Bishop, ChessPiece.Knight, ChessPiece.Rook };
         inline for (majorPieces, 0..) |major, index| {
-            const rez = createPiece(major, pieces.Side.White);
+            const rez = pieces.Piece{
+                .side = pieces.Side.White,
+                .piece = major,
+            };
             board[index][0] = rez;
         }
 
         inline for (majorPieces, 0..) |major, index| {
-            const rez = createPiece(major, pieces.Side.Black);
+            const rez = pieces.Piece{
+                .side = pieces.Side.Black,
+                .piece = major,
+            };
             board[index][7] = rez;
         }
 
@@ -80,33 +94,22 @@ pub const Game = struct {
     }
 };
 
-fn createPiece(piece: anytype, side: pieces.Side) pieces.Piece {
-    switch (piece) {
-        pieces.ChessRook => return pieces.Piece{ .rook = pieces.ChessRook{ .side = side } },
-        pieces.ChessBishop => return pieces.Piece{ .bishop = pieces.ChessBishop{ .side = side } },
-        pieces.ChessKnight => return pieces.Piece{ .knight = pieces.ChessKnight{ .side = side } },
-        pieces.ChessKing => return pieces.Piece{ .king = pieces.ChessKing{ .side = side } },
-        pieces.ChessQueen => return pieces.Piece{ .queen = pieces.ChessQueen{ .side = side } },
-        else => return null,
-    }
-}
-
 pub fn printBoard2(game: *Game) !void {
     const line = [_]u8{'-'} ** 33;
     print("Total moves for pawn: {}\n", .{pawnMoves(game, Square.init2(game, 1, 1))});
+    print("{}\n", .{game.board[3][0].?.piece});
     print("{s}\n", .{line});
     for (0..8) |i| {
-        for (0..1) |_| {
-            for (0..8) |j| {
-                const piece = game.board[j][i];
-                if (piece == null) {
-                    print("|   ", .{});
-                } else {
-                    print("| {s} ", .{piece.?.name()});
-                }
+        for (0..8) |j| {
+            const piece = game.board[j][i];
+            if (piece == null) {
+                print("|   ", .{});
+            } else {
+                print("| {s} ", .{piece.?.symbols()});
             }
-            print("|\n", .{});
         }
+        print("|\n", .{});
+
         print("{s}\n", .{line});
     }
 }
@@ -128,7 +131,7 @@ pub fn pawnMoves(game: *Game, square: Square) u8 {
     var column = square.column;
     if (square.piece.?.isWhite()) column += 1 else column -= 1;
 
-    if (!square.piece.?.pawn.hasMoved) {
+    if (!square.piece.?.hasMoved) {
         const firstMove = if (square.piece.?.isWhite()) column + 1 else column - 1;
 
         if (game.board[square.row][column] == null) totalMoves += 1;
@@ -137,13 +140,53 @@ pub fn pawnMoves(game: *Game, square: Square) u8 {
     } else if (game.board[square.row][column] == null)
         totalMoves += 1;
 
-    if (square.row > 0 and game.board[square.row - 1][column] != null and game.board[square.row - 1][column].?.sideOf() != square.piece.?.sideOf()) {
+    if (square.row > 0 and game.board[square.row - 1][column] != null and game.board[square.row - 1][column].?.side != square.piece.?.side) {
         totalMoves += 1;
     }
-    if (square.row < 7 and game.board[square.row + 1][column] != null and game.board[square.row + 1][column].?.sideOf() != square.piece.?.sideOf()) {
+    if (square.row < 7 and game.board[square.row + 1][column] != null and game.board[square.row + 1][column].?.side != square.piece.?.side) {
         totalMoves += 1;
     }
 
     return totalMoves;
-    // square.piece.pawn.hasMoved
 }
+
+pub fn rookMoves(game: *Game, square: Square) u8 {
+    if (square.piece == null) return 0;
+    var totalMoves: u8 = 0;
+
+    if (!square.piece.?.hasMoved()) {
+        if (square.row == 7) {
+            var i = square.row - 1;
+            while (i > 0) : (i -= 1) {
+                const piece = game.board[i][square.column];
+                if (piece != null and piece.?.piece != ChessPiece.King) break;
+            }
+        }
+    }
+
+    if (square.row < 7) {
+        for (square.row + 1..8) |i| {
+            if (game.board[i][square.column] == null) {
+                totalMoves += 1;
+            }
+        }
+    }
+
+    if (square.row > 7) {
+        for (0..square.row - 1) |i| {
+            if (game.board[i][square.column] == null) {
+                totalMoves += 1;
+            }
+        }
+    }
+
+    return totalMoves;
+}
+
+// row 1 2 3 4
+
+// column
+//   1
+//   2
+//   3
+//   4

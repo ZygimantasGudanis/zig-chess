@@ -28,17 +28,3 @@ pub fn main() !void {
     //try printBoard(stdout);
     //print("{}", .{piece});
 }
-
-pub fn printBoard() !void {
-    const line = [_]u8{'-'} ** 33;
-    try print("{s}\n", .{line});
-    for (0..8) |_| {
-        for (0..1) |_| {
-            for (0..8) |_| {
-                print("|   ", .{});
-            }
-            print("|\n", .{});
-        }
-        print("{s}\n", .{line});
-    }
-}
