@@ -128,7 +128,7 @@ pub fn printPiece(piece: pieces.Piece) !void {
 pub fn pieceMoves(game: *Game, square: Square) u8 {
     switch (square.piece.?.piece) {
         .Bishop => return bishopMoves(game, square),
-        .King => return 0,
+        .King => return kingMoves(game, square),
         .Knight => return 0,
         .Pawn => return pawnMoves(game, square),
         .Queen => return queenMoves(game, square),
@@ -194,18 +194,74 @@ pub fn rookMoves(game: *Game, square: Square) u8 {
     return totalMoves;
 }
 
-pub fn bishopMoves(game: *Game, square: Square) u8 {
+fn bishopMoves(game: *Game, square: Square) u8 {
     std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
     totalMoves += diagnal(game, square);
     return totalMoves;
 }
 
-pub fn queenMoves(game: *Game, square: Square) u8 {
+fn queenMoves(game: *Game, square: Square) u8 {
     std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
     totalMoves += diagnal(game, square);
     totalMoves += lines(game, square);
+    return totalMoves;
+}
+
+fn kingMoves(game: *Game, square: Square) u8 {
+    std.debug.assert(square.piece != null);
+    std.debug.assert(square.piece.?.piece == ChessPiece.King);
+
+    var totalMoves: u8 = 0;
+    if (square.row < 7) {
+        if (game.board[square.row + 1][square.column] == null)
+            totalMoves += 1;
+        if (square.column < 7 and game.board[square.row + 1][square.column + 1] == null)
+            totalMoves += 1;
+        if (square.column > 0 and game.board[square.row + 1][square.column - 1] == null)
+            totalMoves += 1;
+    }
+
+    if (square.row > 0) {
+        if (game.board[square.row - 1][square.column] == null)
+            totalMoves += 1;
+        if (square.column < 7 and game.board[square.row - 1][square.column + 1] == null)
+            totalMoves += 1;
+        if (square.column > 0 and game.board[square.row - 1][square.column - 1] == null)
+            totalMoves += 1;
+    }
+
+    if (square.column < 7) {
+        if (game.board[square.row][square.column + 1] == null)
+            totalMoves += 1;
+    }
+
+    if (square.column > 0) {
+        if (game.board[square.row][square.column - 1] == null)
+            totalMoves += 1;
+    }
+
+    if (!square.piece.?.hasMoved) {
+        var i = square.row - 1;
+        while (i > 0) : (i -= 1) {
+            const piece = game.board[i][square.column];
+            if (piece == null) continue;
+            if (piece.?.piece != ChessPiece.Rook) break;
+
+            //rook lift
+        }
+
+        i = square.row + 1;
+        while (i < game.board.len) : (i += 1) {
+            const piece = game.board[i][square.column];
+            if (piece == null) continue;
+            if (piece.?.piece != ChessPiece.Rook) break;
+
+            //rook lift if no Checks in path
+        }
+    }
+
     return totalMoves;
 }
 
