@@ -4,6 +4,8 @@ const gameLib = @import("game.zig");
 
 //zig run src\main.zig
 
+//zig run src/main.zig -O Debug
+
 const print = std.debug.print;
 
 pub fn main() !void {

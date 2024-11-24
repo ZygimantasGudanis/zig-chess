@@ -101,7 +101,7 @@ pub const Game = struct {
 
 pub fn printBoard2(game: *Game) !void {
     const line = [_]u8{'-'} ** 33;
-    print("Total moves for bishop: {}\n", .{try pieceMoves(game, Square.init2(game, 3, 1))});
+    print("Total moves for bishop: {}\n", .{try pieceMoves(game, Square.init2(game, 1, 0))});
     print("{}\n", .{game.board[3][0].?.piece});
     print("{s}\n", .{line});
     for (0..8) |i| {
@@ -136,42 +136,42 @@ pub fn pieceMoves(game: *Game, square: Square) !u8 {
         return 255;
     }
     switch (square.piece.?.piece) {
-        .Bishop => return bishopMoves(game, square),
-        .King => return kingMoves(game, square),
-        .Knight => return 0,
-        .Pawn => return pawnMoves(game, square),
-        .Queen => return queenMoves(game, square),
-        .Rook => return rookMoves(game, square),
+        .Bishop => return try bishopMoves(game, square),
+        .King => return try kingMoves(game, square),
+        .Knight => return try knightMoves(game, square),
+        .Pawn => return try pawnMoves(game, square),
+        .Queen => return try queenMoves(game, square),
+        .Rook => return try rookMoves(game, square),
     }
 }
 
-pub fn pawnMoves(game: *Game, square: Square) u8 {
+fn pawnMoves(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
 
-    var totalMoves: u8 = 0;
+    var moves = std.ArrayList(Move).init(game.allocator);
+    defer moves.deinit();
     var row = square.row;
     if (square.piece.?.isWhite()) row += 1 else row -= 1;
 
     if (!square.piece.?.hasMoved) {
         const firstMove = if (square.piece.?.isWhite()) row + 1 else row - 1;
 
-        if (game.board[square.column][row] == null) totalMoves += 1;
+        if (game.board[square.column][row] == null) try moves.append(Move{ .column = square.column, .row = row });
         if (game.board[square.column][row] == null and game.board[square.column][firstMove] == null)
-            totalMoves += 1;
+            try moves.append(Move{ .column = square.column, .row = row });
     } else if (game.board[square.column][row] == null)
-        totalMoves += 1;
+        try moves.append(Move{ .column = square.column, .row = row });
 
-    if (square.column > 0 and game.board[square.column - 1][row] != null and game.board[square.column - 1][row].?.side != square.piece.?.side) {
-        totalMoves += 1;
-    }
-    if (square.column < 7 and game.board[square.column + 1][row] != null and game.board[square.column + 1][row].?.side != square.piece.?.side) {
-        totalMoves += 1;
-    }
+    if (square.column > 0 and game.board[square.column - 1][row] != null and game.board[square.column - 1][row].?.side != square.piece.?.side)
+        try moves.append(Move{ .column = square.column - 1, .row = row });
 
-    return totalMoves;
+    if (square.column < 7 and game.board[square.column + 1][row] != null and game.board[square.column + 1][row].?.side != square.piece.?.side)
+        try moves.append(Move{ .column = square.column + 1, .row = row });
+
+    return @as(u8, @intCast(moves.items.len));
 }
 
-pub fn rookMoves(game: *Game, square: Square) u8 {
+fn rookMoves(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
 
@@ -199,22 +199,22 @@ pub fn rookMoves(game: *Game, square: Square) u8 {
         }
     }
 
-    totalMoves += lines(game, square);
+    totalMoves += try lines(game, square);
     return totalMoves;
 }
 
-fn bishopMoves(game: *Game, square: Square) u8 {
+fn bishopMoves(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
-    totalMoves += diagnal(game, square);
+    totalMoves += try diagnal(game, square);
     return totalMoves;
 }
 
-fn queenMoves(game: *Game, square: Square) u8 {
+fn queenMoves(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
     var totalMoves: u8 = 0;
-    totalMoves += diagnal(game, square);
-    totalMoves += lines(game, square);
+    totalMoves += try diagnal(game, square);
+    totalMoves += try lines(game, square);
     return totalMoves;
 }
 
@@ -273,91 +273,161 @@ fn kingMoves(game: *Game, square: Square) !u8 {
         }
     }
 
+    // TODO: remove invalid moves
     return @as(u8, @intCast(moves.items.len));
 }
 
-fn lines(game: *Game, square: Square) u8 {
+fn knightMoves(game: *Game, square: Square) !u8 {
+    std.debug.assert(square.piece != null);
+    std.debug.assert(square.piece.?.piece == ChessPiece.Knight);
+
+    var moves = std.ArrayList(Move).init(game.allocator);
+    defer moves.deinit();
+
+    if (square.column < 6) {
+        if (square.row < 7) {
+            const piece = game.board[square.column + 2][square.row + 1];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column + 2, .row = square.row + 1 });
+        }
+        if (square.row >= 1) {
+            const piece = game.board[square.column + 2][square.row - 1];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column + 2, .row = square.row - 1 });
+        }
+    }
+    if (square.column > 1) {
+        if (square.row < 7) {
+            const piece = game.board[square.column - 2][square.row + 1];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column - 2, .row = square.row + 1 });
+        }
+        if (square.row >= 1) {
+            const piece = game.board[square.column - 2][square.row - 1];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column - 2, .row = square.row - 1 });
+        }
+    }
+    if (square.row < 6) {
+        if (square.column < 7) {
+            const piece = game.board[square.column + 1][square.row + 2];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column + 1, .row = square.row + 2 });
+        }
+        if (square.column >= 1) {
+            const piece = game.board[square.column - 1][square.row + 2];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column - 1, .row = square.row + 2 });
+        }
+    }
+    if (square.row > 1) {
+        if (square.column < 7) {
+            const piece = game.board[square.column + 1][square.row - 2];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column + 1, .row = square.row - 2 });
+        }
+        if (square.column >= 1) {
+            const piece = game.board[square.column - 1][square.row - 2];
+            if (piece == null or piece.?.side != square.piece.?.side)
+                try moves.append(Move{ .column = square.column - 1, .row = square.row - 2 });
+        }
+    }
+
+    return @as(u8, @intCast(moves.items.len));
+}
+
+fn lines(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
     std.debug.assert(square.piece.?.piece == ChessPiece.Queen or square.piece.?.piece == ChessPiece.Rook);
 
-    var totalMoves: u8 = 0;
+    var moves = std.ArrayList(Move).init(game.allocator);
+    defer moves.deinit();
+
     if (square.column < 7) {
         for (square.column + 1..8) |i| {
+            const offset = @as(u8, @intCast(i));
             if (game.board[i][square.row] == null) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = offset, .row = square.row });
                 continue;
             }
             if (game.board[i][square.row].?.side != square.piece.?.side) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = offset, .row = square.row });
             } else break;
         }
     }
 
     if (square.column > 0) {
         for (0..square.column - 1) |i| {
+            const offset = @as(u8, @intCast(i));
             if (game.board[i][square.row] == null) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = offset, .row = square.row });
                 continue;
             }
             if (game.board[i][square.row].?.side != square.piece.?.side) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = offset, .row = square.row });
             } else break;
         }
     }
 
     if (square.row < 7) {
         for (square.row + 1..8) |i| {
+            const offset = @as(u8, @intCast(i));
             if (game.board[square.column][i] == null) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = square.column, .row = offset });
                 continue;
             }
             if (game.board[square.column][i].?.side != square.piece.?.side) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = square.column, .row = offset });
             } else break;
         }
     }
 
     if (square.row > 0) {
         for (0..square.row - 1) |i| {
+            const offset = @as(u8, @intCast(i));
             if (game.board[square.column][i] == null) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = square.column, .row = offset });
                 continue;
             }
             if (game.board[square.column][i].?.side != square.piece.?.side) {
-                totalMoves += 1;
+                try moves.append(Move{ .column = square.column, .row = offset });
             } else break;
         }
     }
-    return totalMoves;
+    return @as(u8, @intCast(moves.items.len));
 }
 
-fn diagnal(game: *Game, square: Square) u8 {
+fn diagnal(game: *Game, square: Square) !u8 {
     std.debug.assert(square.piece != null);
     std.debug.assert(square.piece.?.piece == ChessPiece.Queen or square.piece.?.piece == ChessPiece.Bishop);
 
+    var moves = std.ArrayList(Move).init(game.allocator);
+    defer moves.deinit();
+
     var minValue = min(@as(u8, game.board.len) - square.row, @as(u8, game.board.len) - square.column);
-    var totalMoves: u8 = 0;
     if (minValue > 0) {
         for (1..minValue) |i| {
             const piece = game.board[square.column + i][square.row + i];
+            const offset = @as(u8, @intCast(i));
             if (piece != null) {
                 if (piece.?.side != square.piece.?.side)
-                    totalMoves += 1;
+                    try moves.append(Move{ .column = square.column + offset, .row = square.row + offset });
                 break;
             }
-            totalMoves += 1;
+            try moves.append(Move{ .column = square.column + offset, .row = square.row + offset });
         }
     }
     minValue = min(square.row, square.column) + 1;
     if (minValue > 0) {
         for (1..minValue) |i| {
             const piece = game.board[square.column - i][square.row - i];
+            const offset = @as(u8, @intCast(i));
             if (piece != null) {
                 if (piece.?.side != square.piece.?.side)
-                    totalMoves += 1;
+                    try moves.append(Move{ .column = square.column - offset, .row = square.row - offset });
                 break;
             }
-            totalMoves += 1;
+            try moves.append(Move{ .column = square.column - offset, .row = square.row - offset });
         }
     }
 
@@ -365,12 +435,13 @@ fn diagnal(game: *Game, square: Square) u8 {
     if (minValue > 0) {
         for (1..minValue) |i| {
             const piece = game.board[square.column - i][square.row + i];
+            const offset = @as(u8, @intCast(i));
             if (piece != null) {
                 if (piece.?.side != square.piece.?.side)
-                    totalMoves += 1;
+                    try moves.append(Move{ .column = square.column - offset, .row = square.row + offset });
                 break;
             }
-            totalMoves += 1;
+            try moves.append(Move{ .column = square.column - offset, .row = square.row + offset });
         }
     }
 
@@ -378,15 +449,16 @@ fn diagnal(game: *Game, square: Square) u8 {
     if (minValue > 0) {
         for (1..minValue) |i| {
             const piece = game.board[square.column + i][square.row - i];
+            const offset = @as(u8, @intCast(i));
             if (piece != null) {
                 if (piece.?.side != square.piece.?.side)
-                    totalMoves += 1;
+                    try moves.append(Move{ .column = square.column + offset, .row = square.row - offset });
                 break;
             }
-            totalMoves += 1;
+            try moves.append(Move{ .column = square.column + offset, .row = square.row - offset });
         }
     }
-    return totalMoves;
+    return @as(u8, @intCast(moves.items.len));
 }
 
 fn min(a: u8, b: u8) u8 {
