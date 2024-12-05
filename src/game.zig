@@ -314,7 +314,7 @@ fn kingMoves(game: *Game, square: Square) ![]Square {
         if (game.board[square.column][square.row - 1] == null or game.board[square.column][square.row - 1].?.side != square.piece.?.side)
             try moves.append(Square{ .column = square.column, .row = square.row - 1, .piece = game.board[square.column][square.row - 1] });
     }
-
+    // Rook lift
     if (!square.piece.?.hasMoved) {
         var i = square.column - 1;
         while (true) : (i -= 1) {
@@ -325,7 +325,6 @@ fn kingMoves(game: *Game, square: Square) ![]Square {
                 break;
             }
             break;
-            //rook lift
         }
 
         i = square.column + 1;
