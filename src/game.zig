@@ -56,14 +56,14 @@ pub const Game = struct {
 
         for (0..8) |i| {
             board[i][1] = pieces.Piece{
-                .side = pieces.Side.White,
+                .side = pieces.ChessSide.White,
                 .piece = ChessPiece.Pawn,
             };
         }
 
         for (0..8) |i| {
             board[i][6] = pieces.Piece{
-                .side = pieces.Side.Black,
+                .side = pieces.ChessSide.Black,
                 .piece = ChessPiece.Pawn,
             };
         }
@@ -71,7 +71,7 @@ pub const Game = struct {
         const majorPieces = [_]ChessPiece{ ChessPiece.Rook, ChessPiece.Knight, ChessPiece.Bishop, ChessPiece.King, ChessPiece.Queen, ChessPiece.Bishop, ChessPiece.Knight, ChessPiece.Rook };
         inline for (majorPieces, 0..) |major, index| {
             const rez = pieces.Piece{
-                .side = pieces.Side.White,
+                .side = pieces.ChessSide.White,
                 .piece = major,
             };
             board[index][0] = rez;
@@ -79,7 +79,7 @@ pub const Game = struct {
 
         inline for (majorPieces, 0..) |major, index| {
             const rez = pieces.Piece{
-                .side = pieces.Side.Black,
+                .side = pieces.ChessSide.Black,
                 .piece = major,
             };
             board[index][7] = rez;
@@ -101,7 +101,7 @@ pub fn gameLoop(game: *Game) !void {
     defer game.allocator.free(buf);
     const reader = std.io.getStdIn().reader();
 
-    var side = pieces.Side.White;
+    var side = pieces.ChessSide.White;
     //TODO: Use tokenizer
     while (true) {
         try printBoard(game);
@@ -142,7 +142,7 @@ pub fn gameLoop(game: *Game) !void {
             continue;
         };
 
-        if (side == pieces.Side.White) side = pieces.Side.Black else side = pieces.Side.White;
+        if (side == pieces.ChessSide.White) side = pieces.ChessSide.Black else side = pieces.ChessSide.White;
     }
 }
 
@@ -565,4 +565,36 @@ fn validateMove(validMoves: []Square, move: Square) ?Square {
         }
     }
     return null;
+}
+
+fn isChecked(game: *Game, side: pieces.ChessSide) void {
+    const king: Square = undefined;
+
+    for (game.board, 0..) |columns, col_index| {
+        for (columns, 0..) |piece, row_index| {
+            if (piece == null) continue;
+            if (piece.?.side == side and piece.?.piece == ChessPiece.King) {
+                king = Square{
+                    .column = @as(u8, @intCast(col_index)),
+                    .row = @as(u8, @intCast(row_index)),
+                    .piece = piece.?,
+                };
+                break;
+            }
+        }
+        if (king != undefined)
+            break;
+    }
+
+    for (game.board, 0..) |columns, col_index| {
+        for (columns, 0..) |piece, row_index| {
+            if (piece == null or piece.?.side == side) continue;
+
+            _ = try pieceMoves(game, Square{
+                .column = @as(u8, @intCast(col_index)),
+                .row = @as(u8, @intCast(row_index)),
+                .piece = piece.?,
+            });
+        }
+    }
 }

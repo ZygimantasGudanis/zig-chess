@@ -1,14 +1,14 @@
 const std = @import("std");
-pub const Side = enum { Black, White };
+pub const ChessSide = enum { Black, White };
 pub const ChessPiece = enum { Pawn, Bishop, Knight, Rook, Queen, King };
 
 pub const Piece = struct {
     hasMoved: bool = false,
-    side: Side,
+    side: ChessSide,
     piece: ChessPiece,
 
     pub fn isWhite(self: Piece) bool {
-        return self.side == Side.White;
+        return self.side == ChessSide.White;
     }
 
     pub fn symbols(self: Piece) []const u8 {
